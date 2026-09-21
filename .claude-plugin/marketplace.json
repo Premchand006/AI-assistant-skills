@@ -1,7 +1,7 @@
 {
-  "name": "claude-essentials",
+  "name": "ai-assistant-skills",
   "owner": {
-    "name": "your-github-username"
+    "name": "Premchand006"
   },
   "metadata": {
     "description": "Measured skills for open-silicon, embedded firmware and edge AI. Every skill ships with an eval suite and an honest-limits section.",
@@ -9,7 +9,7 @@
   },
   "plugins": [
     {
-      "name": "claude-essentials",
+      "name": "silicon-skills",
       "source": "./",
       "description": "Seven skills for RTL, silicon implementation, firmware and edge AI deployment, each with usefulness, discovery and adversarial-discovery evals.",
       "version": "0.1.0",

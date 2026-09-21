@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- CI: `actions/setup-python` failed with "No file matched to
+  `[**/requirements.txt or **/pyproject.toml]`" because the dependency file
+  here is `requirements-dev.txt`. Added `cache-dependency-path`.
+- CI: `actions/checkout@v4` and `actions/setup-python@v5` run on the deprecated
+  Node 20 runtime. Both moved to `@v7`, which runs on Node 24.
+- CI: `shellcheck -S warning` failed on `run_static.sh` with SC2054, a false
+  positive on a cppcheck argument that legitimately contains commas. The array
+  element is now quoted. Both wrapper scripts are clean at `-S style`.
+- `lint_rtl.sh` and `run_static.sh` hardcoded `python3`, so on a machine where
+  the interpreter is `python` they reported "at least one check reported a
+  problem" — turning a missing interpreter into what looked like a failed
+  check. They now resolve `python3`, `python` or `py`, honour `PYTHON=...`, and
+  exit 2 with an explanation when none is found.
+
+### Added
+
+- `.gitattributes` pinning shell and source files to LF, so a clone on Windows
+  cannot produce CRLF scripts that fail on a Linux runner.
+- `.github/dependabot.yml` for monthly action and pip updates, so a runtime
+  deprecation arrives as a pull request rather than as a failed build.
+- `.editorconfig`, a pull request template, and two issue templates: one for a
+  skill that gave bad guidance, one for a checker that reported the wrong
+  thing.
+- CI job step that runs both wrapper scripts on a machine with no EDA tools
+  installed, checking they report what was skipped instead of failing.
+- CI now also tests on Python 3.13.
+
+### Changed
+
+- Repository and plugin naming settled: marketplace `ai-assistant-skills`,
+  plugin `silicon-skills`, owner `Premchand006`.
+
 ## 0.1.0 — unreleased
 
 First cut. Seven skills, the harness that grades them, and the CI that keeps

@@ -20,8 +20,8 @@ make. That mistake is the real proposal.
 ## Getting set up
 
 ```bash
-git clone https://github.com/your-github-username/claude-essentials
-cd claude-essentials
+git clone https://github.com/Premchand006/AI-assistant-skills
+cd AI-assistant-skills
 python3 -m pip install -r requirements-dev.txt
 python3 tools/validate_skills.py --strict
 python3 tools/test_scripts.py

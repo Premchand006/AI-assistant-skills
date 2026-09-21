@@ -1,0 +1,38 @@
+# Normalise line endings on commit. Without this, a clone on Windows with
+# core.autocrlf=true rewrites the shell scripts to CRLF, and bash on the CI
+# runner then fails with "bad interpreter: /usr/bin/env bash^M".
+* text=auto eol=lf
+
+# Files that must stay LF whatever the platform.
+*.sh      text eol=lf
+*.py      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+Makefile  text eol=lf
+
+# Hardware and firmware sources are plain text too.
+*.v    text eol=lf
+*.sv   text eol=lf
+*.svh  text eol=lf
+*.vh   text eol=lf
+*.c    text eol=lf
+*.h    text eol=lf
+*.sdc  text eol=lf
+*.tcl  text eol=lf
+*.cfg  text eol=lf
+
+# Binary: never touched, never diffed as text.
+*.onnx   binary
+*.tflite binary
+*.npy    binary
+*.npz    binary
+*.gds    binary
+*.png    binary
+*.gif    binary
+
+# Keep generated fixtures and eval transcripts out of language statistics, so
+# the repository reads as Python and SystemVerilog rather than as fixtures.
+evals/fixtures/** linguist-vendored
+evals/transcripts/** linguist-generated

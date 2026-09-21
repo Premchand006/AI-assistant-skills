@@ -1,0 +1,28 @@
+version: 2
+
+updates:
+  # The reason this file exists: actions pinned to a major version stop being
+  # maintained, and the runner eventually deprecates the Node they ship. This
+  # opens a pull request when a new major appears, instead of the workflow
+  # failing on a deprecation notice months later.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies
+      - ci
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: deps
+    labels:
+      - dependencies
+    # The checkers are pinned loosely on purpose; only security and major
+    # updates are worth a pull request here.
+    open-pull-requests-limit: 3

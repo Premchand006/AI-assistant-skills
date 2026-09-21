@@ -12,6 +12,21 @@ TARGETS=()
 SKIPPED=()
 FAILED=0
 
+# Resolve an interpreter rather than assuming python3: it is python on Windows
+# and on some minimal images. A missing interpreter is its own error, not a
+# failed check.
+PYTHON="${PYTHON:-}"
+if [[ -z "$PYTHON" ]]; then
+  for candidate in python3 python py; do
+    if command -v "$candidate" >/dev/null 2>&1; then PYTHON="$candidate"; break; fi
+  done
+fi
+if [[ -z "$PYTHON" ]]; then
+  echo "no Python interpreter found (tried python3, python, py)." >&2
+  echo "Install Python 3.8+ or set PYTHON=/path/to/python and re-run." >&2
+  exit 2
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --misra) MISRA=1; shift ;;
@@ -27,14 +42,15 @@ if [[ ${#TARGETS[@]} -eq 0 ]]; then
 fi
 
 echo "== ISR and shared-state check"
-if ! python3 "$SCRIPT_DIR/check_isr_safety.py" "${TARGETS[@]}" --fail-on error; then
+if ! "$PYTHON" "$SCRIPT_DIR/check_isr_safety.py" "${TARGETS[@]}" --fail-on error; then
   FAILED=1
 fi
 
 echo
 echo "== cppcheck"
 if command -v cppcheck >/dev/null 2>&1; then
-  CPPFLAGS=(--enable=warning,style,performance,portability
+  # Quoted: the commas belong to the cppcheck argument, they are not separators.
+  CPPFLAGS=("--enable=warning,style,performance,portability"
             --inline-suppr --error-exitcode=1 --quiet
             --suppress=missingIncludeSystem)
   [[ -n "$COMPILE_DB" ]] && CPPFLAGS+=(--project="$COMPILE_DB")

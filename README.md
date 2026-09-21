@@ -1,4 +1,4 @@
-# claude-essentials
+# AI-assistant-skills
 
 **Skills for open-silicon, embedded firmware and edge AI — each one shipped with the evals that show whether it helps.**
 
@@ -12,8 +12,8 @@ when it should, does it stay quiet when it should not — and the transcripts ar
 committed so you can re-grade them yourself.
 
 ```bash
-/plugin marketplace add your-github-username/claude-essentials
-/plugin install claude-essentials
+/plugin marketplace add Premchand006/AI-assistant-skills
+/plugin install silicon-skills@ai-assistant-skills
 ```
 
 ## What is in it
@@ -33,8 +33,8 @@ committed so you can re-grade them yourself.
 The checkers run standalone against the fixtures in this repo:
 
 ```bash
-git clone https://github.com/your-github-username/claude-essentials
-cd claude-essentials
+git clone https://github.com/Premchand006/AI-assistant-skills
+cd AI-assistant-skills
 
 # RTL that simulates but will not synthesise
 python3 skills/rtl-verilog-lint/scripts/check_synthesizable.py \
@@ -55,6 +55,11 @@ cdc_mixed.sv:36: error: [multibit-2ff] multi-bit signal 'data_fast' crosses
     hint: the bits settle independently, so the destination can sample a value
           that never existed; use gray coding, a handshake, or an async FIFO
 ```
+
+The checkers need Python 3.8+ and nothing else — no EDA tools, no ML
+libraries. On Windows use `python` in place of `python3`; the two wrapper
+scripts (`lint_rtl.sh`, `run_static.sh`) find the interpreter themselves and
+accept `PYTHON=...` to override it.
 
 ## Eval results
 
@@ -154,15 +159,6 @@ honest-limits section. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 
 ```bash
 python3 skills/skill-eval-harness/scripts/new_skill.py my-skill-name
-```
-
-## Setup note
-
-This repository uses `your-github-username` as a placeholder. Replace it before
-publishing:
-
-```bash
-grep -rl your-github-username . | xargs sed -i 's/your-github-username/YOUR_HANDLE/g'
 ```
 
 ## License
