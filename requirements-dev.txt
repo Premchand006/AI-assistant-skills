@@ -1,5 +1,5 @@
 # Everything needed to validate the skills and run the eval harness.
-PyYAML>=6.0
+PyYAML>=6.0.3
 
 # For evals/eval_runner.py --runner api. The cli runner needs the `claude`
 # binary instead, and the default replay runner needs neither.
