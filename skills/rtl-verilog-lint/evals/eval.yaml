@@ -1,0 +1,107 @@
+skill: rtl-verilog-lint
+
+# Discovery: with only the frontmatter descriptions of every skill in this
+# repo visible, does this prompt select this skill?
+discovery:
+  should_trigger:
+    - "Write me a 4-deep synchronous FIFO in SystemVerilog with full and empty flags."
+    - "Vivado says my always block infers a latch on `next_state`. Here is the module, what is wrong?"
+    - "Review this Verilog for anything that won't synthesise."
+    - "Convert this always @(*) block to always_comb and tell me if the behaviour changes."
+    - "My counter simulates fine but the gate-level netlist counts wrong. Any idea why?"
+  # Adversarial: superficially related, should select something else or nothing.
+  should_not_trigger:
+    - "Write a UVM sequence that randomises the FIFO push and pop order."
+    - "My design fails setup timing by 300ps on the clk-to-q path. How do I fix it?"
+    - "Generate the OpenLane config.json for this design so it runs through to GDSII."
+    - "How do I quantise this ONNX model to int8 for an MCU?"
+    - "Write a Python script that parses a CSV of register addresses."
+    - "Explain what a latch is in digital logic." # concept question, no RTL to act on
+
+usefulness:
+  - id: fifo-from-scratch
+    note: >
+      The classic failure: a generated FIFO that uses blocking assignments in
+      the clocked block and leaves the pointer comparison latch-prone.
+    prompt: |
+      Write a synchronous FIFO in SystemVerilog. Parameters for data width and
+      depth, standard full/empty flags, single clock. Target is a Sky130 ASIC.
+    graders:
+      must_match:
+        - "always_ff|always\\s*@\\s*\\(\\s*posedge"
+        - "<="                      # non-blocking in the clocked block
+        - "default_nettype\\s+none"
+      must_not_match:
+        - "initial\\s+begin"        # no simulation-only init in an ASIC design
+        - "#\\s*\\d+\\s*;"          # no delay controls
+      min_chars: 400
+
+  - id: fix-latch
+    note: Model should name latch inference and add a default, not just reformat.
+    prompt: |
+      This block makes Vivado report an inferred latch. Fix it and explain in
+      one sentence why the latch appeared.
+    files:
+      rtl/decode.sv: |
+        always @(*) begin
+            case (opcode)
+                2'b00: alu_op = 3'd1;
+                2'b01: alu_op = 3'd2;
+            endcase
+        end
+    graders:
+      must_match:
+        - "latch"
+        - "default"
+      must_match_any:
+        - "always_comb"
+        - "unassigned|every path|all paths"
+
+  - id: blocking-race
+    note: >
+      Skill-off answers often "fix" this by reordering the statements, which
+      leaves the race in place.
+    prompt: |
+      Review this module. It passes simulation but the synthesised version
+      gives different results. What is wrong and what is the corrected code?
+    files:
+      rtl/pipe.sv: |
+        module pipe (input clk, input [7:0] din, output reg [7:0] dout);
+            reg [7:0] stage1;
+            always @(posedge clk) stage1 = din;
+            always @(posedge clk) dout   = stage1;
+        endmodule
+    graders:
+      must_match:
+        - "<="
+        - "blocking|non-blocking|nonblocking"
+      must_match_any:
+        - "race|ordering|order of|scheduling|simulation/synthesis|mismatch"
+
+  - id: reset-sensitivity
+    note: Bare reset term in an async list is legal syntax with no agreed meaning.
+    prompt: |
+      Is `always @(posedge clk or rst)` correct for a flop with an asynchronous
+      active-high reset? Answer directly and give the corrected line.
+    graders:
+      must_match:
+        - "posedge\\s+rst"
+      must_match_any:
+        - "edge|qualifier|posedge or negedge"
+      must_not_match:
+        - "^\\s*yes,? (it is|that is) correct"
+
+  - id: run-the-checker
+    note: >
+      Tests whether the model reaches for the bundled script rather than only
+      eyeballing the file. Graded on the response text, since the runner does
+      not execute tools.
+    prompt: |
+      I have a directory rtl/ with about twenty SystemVerilog files and I want
+      to know if any of them have synthesis problems before I kick off a
+      two-hour Vivado run. What should I do?
+    graders:
+      must_match:
+        - "check_synthesizable\\.py|lint_rtl\\.sh"
+      must_match_any:
+        - "verilator|verible|yosys"

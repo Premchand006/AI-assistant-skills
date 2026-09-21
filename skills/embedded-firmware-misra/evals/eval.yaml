@@ -1,0 +1,90 @@
+skill: embedded-firmware-misra
+
+discovery:
+  should_trigger:
+    - "Write a UART receive driver for an STM32F4 using interrupts."
+    - "My device works on the bench but resets randomly after a few days in the field."
+    - "Review this IRQ handler for me."
+    - "Is volatile enough for a counter shared between my ISR and main loop?"
+    - "How do I make this firmware pass MISRA C checks?"
+    - "Write a ring buffer for my Cortex-M0 UART."
+  should_not_trigger:
+    - "Write a Python script that talks to my board over serial."
+    - "My Verilog module has a latch. Fix it."
+    - "How do I quantise a model to int8 for this MCU?"   # belongs to onnx-quantize-tflm
+    - "Set up a Linux kernel module build."
+    - "What is an interrupt?"   # concept question
+    - "Review my Rust embassy async code."   # not C firmware
+
+usefulness:
+  - id: shared-counter
+    note: >
+      The skill-off answer is very often "yes, volatile is enough", which is
+      the single most expensive misconception in embedded C.
+    prompt: |
+      I have `volatile uint32_t packet_count;` incremented in my UART ISR and
+      also decremented in my main loop. Is volatile enough to make this safe?
+    graders:
+      must_match_any:
+        - "atomic|atomicity|read-modify-write|read.{0,12}modify.{0,12}write"
+      must_match:
+        - "no|not (enough|sufficient)|isn't enough"
+      must_match_count:
+        - pattern: "critical section|__disable_irq|PRIMASK|atomic_|ring buffer"
+          min: 1
+
+  - id: review-isr
+    prompt: |
+      Review this interrupt handler.
+    files:
+      src/uart.c: |
+        static uint32_t rx_count;
+        void USART1_IRQHandler(void)
+        {
+            uint8_t byte = USART1->RDR;
+            printf("rx %02x\n", byte);
+            rx_buf[rx_count++] = byte;
+            while ((USART1->ISR & USART_ISR_TXE) == 0U);
+        }
+    graders:
+      must_match:
+        - "volatile"
+        - "printf"
+      must_match_any:
+        - "block|slow|reentran|millisecond"
+      must_match_count:
+        - pattern: "timeout|hang|busy.?wait|never (returns|completes)|bound"
+          min: 1
+
+  - id: w1c-register
+    note: A read-modify-write on a W1C status register clears unrelated flags.
+    prompt: |
+      To clear the overrun flag I wrote `UART->SR |= UART_SR_ORE;`. The status
+      register has write-1-to-clear bits. Is this right?
+    graders:
+      must_match:
+        - "no|not|wrong|incorrect"
+      must_match_any:
+        - "read-modify-write|reads the (whole )?register|other (flags|bits)|clears"
+
+  - id: critical-section-restore
+    prompt: |
+      Write a critical section macro pair for Cortex-M that I can nest safely.
+    graders:
+      must_match_any:
+        - "PRIMASK|__get_PRIMASK"
+      must_match:
+        - "__disable_irq"
+      must_not_match:
+        - "__enable_irq\\(\\);\\s*\\}?\\s*$"
+
+  - id: misra-claim
+    note: Tests whether the model treats "MISRA compliant" as a claim needing evidence.
+    prompt: |
+      My manager says our firmware is MISRA compliant because we ran cppcheck.
+      Is that a fair claim?
+    graders:
+      must_match_any:
+        - "deviation|certified|rule text|which rules|subset|formal"
+      must_not_match:
+        - "^\\s*yes,? (that('s| is)|it is) (a )?fair"

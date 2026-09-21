@@ -1,0 +1,105 @@
+skill: openlane-sky130-flow
+
+discovery:
+  should_trigger:
+    - "Write me an OpenLane config.json for a UART block targeting sky130."
+    - "My OpenLane run died in 31-openroad-globalrouting with congestion. What do I change?"
+    - "Netgen LVS says my design has mismatches after a clean DRC. Where do I start?"
+    - "How do I resume an OpenLane run from CTS without redoing synthesis?"
+    - "I want to tape out this Verilog block on Efabless. What does the flow look like?"
+  should_not_trigger:
+    - "My always block infers a latch, how do I fix the Verilog?"
+    - "Write a cocotb testbench for this AXI-Lite slave."
+    - "How do I add a 2-flop synchroniser between my 100MHz and 25MHz domains?"
+    - "Set up a GitHub Actions workflow that runs pytest on every push."
+    - "What is the difference between placement and routing?" # concept question
+    - "Deploy my quantised model to an STM32H7."
+
+usefulness:
+  - id: config-from-scratch
+    note: >
+      Skill-off configs commonly use "sky130" (a family, not a variant), omit
+      the meta block, and use bare relative paths that break when the run is
+      started from another directory.
+    prompt: |
+      Write an OpenLane 2 config.json for a design called uart_tx in
+      src/uart_tx.v, 50 MHz clock on port clk, targeting the open sky130 PDK.
+    graders:
+      must_match:
+        - "sky130A"
+        - "\"DESIGN_NAME\"\\s*:\\s*\"uart_tx\""
+        - "dir::"
+        - "\"CLOCK_PERIOD\"\\s*:\\s*20"
+      must_not_match:
+        - "\"PDK\"\\s*:\\s*\"sky130\""
+      must_match_any:
+        - "\"meta\""
+        - "\"version\"\\s*:\\s*2"
+
+  - id: broken-config-review
+    note: Every defect below is one check_config.py reports.
+    prompt: |
+      Review this OpenLane config. It fails almost immediately. What is wrong?
+    files:
+      config.json: |
+        {
+          "DESIGN_NAME": "counter",
+          "VERILOG_FILES": "counter.v",
+          "CLOCK_PORT": "clock",
+          "CLOCK_PERIOD": "10",
+          "FP_CORE_UTIL": 85,
+          "PDK": "sky130",
+          "DIE_AREA": "0 0 200 200"
+        }
+    graders:
+      must_match:
+        - "sky130A|fully qualified|variant"
+        - "dir::|relative path|resolve"
+      must_match_any:
+        - "FP_SIZING"
+        - "DIE_AREA .*(ignored|no effect|not honoured|absolute)"
+      must_match_count:
+        - pattern: "CLOCK_PORT|clock port|clk"
+          min: 1
+
+  - id: congestion-triage
+    note: >
+      The wrong answer is to raise GRT_ADJUSTMENT and layer limits until the
+      run completes, which produces a design that fails sign-off.
+    prompt: |
+      OpenLane global routing reports heavy congestion on my sky130 design.
+      FP_CORE_UTIL is 65 and PL_TARGET_DENSITY_PCT is 70. What should I change?
+    graders:
+      must_match:
+        - "FP_CORE_UTIL"
+      must_match_any:
+        - "lower|reduce|drop|decrease"
+      must_not_match:
+        - "raise (GRT_ADJUSTMENT|RT_MAX_LAYER) (first|immediately)"
+
+  - id: metric-interpretation
+    prompt: |
+      My OpenLane run finished and reports timing__setup__ws of -0.42,
+      route__drc_errors of 37, and magic__drc_error__count of 0. Is this design
+      ready to submit to a shuttle?
+    graders:
+      must_match:
+        - "no|not ready"
+      must_match_any:
+        - "setup|slack|negative"
+      must_match_count:
+        - pattern: "DRC|drc_errors|37"
+          min: 1
+
+  - id: resume-run
+    prompt: |
+      I changed PL_TARGET_DENSITY_PCT. Do I need to rerun the whole OpenLane
+      flow from synthesis, and what is the command?
+    graders:
+      must_match:
+        - "--from"
+      must_match_any:
+        - "--last-run"
+        - "resume"
+      must_not_match:
+        - "you must rerun (the )?(entire|whole) flow from synthesis"

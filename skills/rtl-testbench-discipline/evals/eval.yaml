@@ -1,0 +1,101 @@
+skill: rtl-testbench-discipline
+
+discovery:
+  should_trigger:
+    - "Write a testbench for this synchronous FIFO."
+    - "Write a cocotb test for my SPI master."
+    - "My simulation passes but the FPGA build doesn't work. How do I make the testbench actually catch this?"
+    - "Add SystemVerilog assertions to check my AXI-Lite handshake."
+    - "Set up a UVM agent for this custom bus interface."
+    - "How much functional coverage do I need before I trust this block?"
+  should_not_trigger:
+    - "My always block infers a latch. Fix the RTL."
+    - "How do I pass a 4-bit counter between two clock domains?"
+    - "My OpenLane run fails LVS."
+    - "Write pytest tests for my Python data pipeline."   # software tests, not RTL
+    - "How do I quantise a model for a microcontroller?"
+    - "What does DUT stand for?"
+
+usefulness:
+  - id: fifo-testbench
+    note: >
+      The common skill-off testbench drives stimulus, prints dout, and calls
+      $finish, which passes no matter what the DUT does.
+    prompt: |
+      Write a SystemVerilog testbench for a synchronous FIFO with push, pop,
+      full, empty, din and dout. It needs to run unattended in CI.
+    graders:
+      must_match:
+        - "\\$fatal|\\$error"
+        - "error\\w*\\s*(\\+\\+|\\+=|=\\s*error)"
+      must_match_any:
+        - "timeout|watchdog|TIMEOUT"
+      must_not_match:
+        - "\\$finish;\\s*\\n\\s*end\\s*\\n\\s*endmodule\\s*$"   # ends without a verdict
+      min_chars: 600
+
+  - id: review-weak-tb
+    note: Fixture is the same file as evals/fixtures/tb/weak_tb.sv.
+    prompt: |
+      Review this testbench and tell me what is wrong with it.
+    files:
+      tb/weak_tb.sv: |
+        module weak_tb;
+            logic clk = 0;
+            logic [7:0] din, dout;
+            always #5 clk = ~clk;
+            dut u_dut (.clk(clk), .din(din), .dout(dout));
+            initial begin
+                @(posedge clk) din = 8'h00;
+                @(posedge clk) din = 8'hFF;
+                repeat (10) @(posedge clk);
+                $display("dout = %h", dout);
+                $finish;
+            end
+        endmodule
+    graders:
+      must_match_any:
+        - "cannot fail|never fails|always passes|no check|doesn't check|does not check"
+      must_match:
+        - "assert|compar|expected"
+      must_match_count:
+        - pattern: "timeout|watchdog|reset|posedge.{0,40}race|blocking"
+          min: 1
+
+  - id: cocotb-timeout
+    prompt: |
+      Write a cocotb test for a counter DUT. It has to fail rather than hang if
+      the counter never reaches the expected value.
+    graders:
+      must_match:
+        - "@cocotb\\.test"
+        - "timeout_time|with_timeout"
+        - "assert"
+      must_match_any:
+        - "RisingEdge|FallingEdge"
+
+  - id: uvm-silent-pass
+    note: >
+      A missing objection is the single most common reason a UVM test runs in
+      zero time and reports success.
+    prompt: |
+      My UVM test finishes instantly and reports UVM_INFO with no errors, but
+      no stimulus ever reached the DUT. What did I forget?
+    graders:
+      must_match:
+        - "objection"
+      must_match_any:
+        - "raise_objection"
+        - "run_phase"
+
+  - id: zero-checks
+    note: Tests whether the model treats "tests pass" as a claim needing evidence.
+    prompt: |
+      My regression reports "0 errors" and I'm ready to sign off the block. Is
+      that enough?
+    graders:
+      must_match_any:
+        - "how many checks|number of checks|zero checks|0 checks|checks ran"
+        - "coverage"
+      must_not_match:
+        - "^\\s*yes,? (that('s| is)|it is) enough"

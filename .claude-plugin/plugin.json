@@ -1,0 +1,37 @@
+{
+  "name": "claude-essentials",
+  "description": "Seven measured skills for open-silicon, embedded firmware and edge AI: synthesisable RTL, testbench discipline, timing and CDC, OpenLane/Sky130 RTL-to-GDSII, ISR-safe firmware, INT8 quantisation to TFLite Micro, and the eval harness they are all graded by.",
+  "version": "0.1.0",
+  "author": {
+    "name": "your-github-username"
+  },
+  "homepage": "https://github.com/your-github-username/claude-essentials",
+  "repository": "https://github.com/your-github-username/claude-essentials",
+  "license": "MIT",
+  "keywords": [
+    "verilog",
+    "systemverilog",
+    "rtl",
+    "asic",
+    "fpga",
+    "openlane",
+    "sky130",
+    "openroad",
+    "vlsi",
+    "timing-closure",
+    "cdc",
+    "uvm",
+    "cocotb",
+    "embedded",
+    "firmware",
+    "cortex-m",
+    "stm32",
+    "misra",
+    "tinyml",
+    "onnx",
+    "quantization",
+    "tflite-micro",
+    "edge-ai",
+    "evals"
+  ]
+}

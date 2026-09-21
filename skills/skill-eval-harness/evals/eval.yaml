@@ -1,0 +1,89 @@
+skill: skill-eval-harness
+
+discovery:
+  should_trigger:
+    - "I want to write a Claude skill for our internal deployment process. How do I structure it?"
+    - "My skill never seems to load even though it's installed. What's wrong?"
+    - "How do I know if this skill is actually helping or just taking up context?"
+    - "Write an eval suite for my skill."
+    - "Review this SKILL.md and tell me if the description is any good."
+    - "Is it worth adding all 40 of these skills to my setup?"
+  should_not_trigger:
+    - "Write a unit test for this Python function."          # software testing
+    - "How do I benchmark my model's inference latency?"     # model benchmarking
+    - "Set up an MCP server for our internal API."           # MCP, not skills
+    - "Review this Verilog module."
+    - "What is a large language model?"
+    - "Write documentation for our REST API."
+
+usefulness:
+  - id: description-review
+    note: >
+      A vague description is the most common reason a good skill never fires.
+      The skill-off answer usually praises the prose instead of naming the
+      trigger problem.
+    prompt: |
+      Here is the frontmatter of a skill I wrote. Is it good?
+
+      ---
+      name: db-helper
+      description: Helps with database stuff and makes queries better.
+      ---
+    graders:
+      must_match_any:
+        - "when to use|trigger|Use when|never (load|fire|trigger)|too vague|too general"
+      must_match:
+        - "descript"
+      must_not_match:
+        - "^\\s*(this )?looks (good|great|fine)"
+
+  - id: eval-design
+    note: >
+      The valuable answer includes adversarial discovery, which almost nobody
+      writes, and insists cases be ones the baseline gets wrong.
+    prompt: |
+      I wrote a skill for reviewing SQL migrations. How do I find out whether
+      it actually improves anything?
+    graders:
+      must_match_any:
+        - "with(out)? the skill|skill.on|skill.off|baseline|A/B|compare"
+      must_match_count:
+        - pattern: "discovery|trigger|select"
+          min: 1
+      min_chars: 300
+
+  - id: too-many-skills
+    note: >
+      The honest answer is that unmeasured skills cost context and can make
+      output worse, not "sure, more skills is better".
+    prompt: |
+      I found a repo with 300 skills in it. Should I install all of them?
+    graders:
+      must_match_any:
+        - "context|bloat|degrad|worse|quality"
+      must_not_match:
+        - "^\\s*(yes|sure|definitely)"
+
+  - id: skill-vs-mcp
+    prompt: |
+      Should I build a skill or an MCP server to let Claude query our internal
+      metrics API?
+    graders:
+      must_match:
+        - "MCP"
+      must_match_any:
+        - "API|connection|tool|data source"
+      must_match_count:
+        - pattern: "skill"
+          min: 2
+
+  - id: results-claim
+    note: Tests whether selection bias in eval cases gets stated.
+    prompt: |
+      My skill passed 9 out of 10 eval cases while the baseline passed 2. Can I
+      say in my README that it improves output quality by 70%?
+    graders:
+      must_match_any:
+        - "select|bias|chose|chosen|cherry|designed to|not a (success )?rate"
+      must_match:
+        - "no|not|misleading|overstate|can't|cannot"

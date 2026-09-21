@@ -1,0 +1,15 @@
+# Everything needed to validate the skills and run the eval harness.
+PyYAML>=6.0
+
+# For evals/eval_runner.py --runner api. The cli runner needs the `claude`
+# binary instead, and the default replay runner needs neither.
+# anthropic>=0.40.0
+
+# For skills/onnx-quantize-tflm/scripts/quantize_onnx.py and the smoke test.
+numpy>=1.24
+onnx>=1.15
+onnxruntime>=1.17
+
+# For skills/onnx-quantize-tflm/scripts/tflite_report.py. Not installed in CI,
+# so that script's report path is not covered by the test suite.
+# ai-edge-litert>=1.0

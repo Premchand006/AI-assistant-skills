@@ -1,0 +1,10 @@
+{
+  "DESIGN_NAME": "good_counter",
+  "VERILOG_FILES": "counter.v",
+  "CLOCK_PORT": "clock",
+  "CLOCK_PERIOD": "10",
+  "FP_CORE_UTIL": 85,
+  "PDK": "sky130",
+  "DIE_AREA": "0 0 200 200",
+  "FP_PIN_ORDER_CFG": "dir::pin_order.cfg"
+}

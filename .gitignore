@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+*.egg-info/
+
+# EDA / build artifacts
+runs/
+obj_dir/
+*.vcd
+*.fst
+*.gds
+*.lef
+*.def
+*.spef
+sim_build/
+results/
+
+# Eval output (transcripts under evals/transcripts/ are committed on purpose)
+evals/out/
+.eval-cache/

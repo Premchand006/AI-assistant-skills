@@ -1,0 +1,87 @@
+skill: onnx-quantize-tflm
+
+discovery:
+  should_trigger:
+    - "Quantise my ONNX model to int8 so it fits on an STM32."
+    - "My TFLite model lost 12% accuracy after quantisation. What went wrong?"
+    - "How big a tensor arena do I need for this model?"
+    - "TFLite Micro AllocateTensors() returns an error on my board."
+    - "Convert my PyTorch CNN to run on a Cortex-M4."
+    - "My inference takes 400ms on an M7 and I need 50ms."
+  should_not_trigger:
+    - "Train a CNN to classify these images."             # training, not deployment
+    - "Speed up my model on an A100."                     # server-side
+    - "Write a UART driver for my STM32."                  # firmware, not ML
+    - "How do I reduce the latency of my FastAPI endpoint?"
+    - "Explain what quantisation is."                      # concept question
+    - "Write Verilog for a systolic array multiplier."
+
+usefulness:
+  - id: accuracy-drop
+    note: >
+      The high-value answer leads with calibration data. Skill-off answers
+      usually lead with quantisation-aware training, which is the most
+      expensive option and rarely the first thing wrong.
+    prompt: |
+      I quantised my image classifier to int8 and accuracy dropped from 94% to
+      71%. I used 100 random noise arrays as the representative dataset. What
+      should I look at?
+    graders:
+      must_match:
+        - "calibrat|representative"
+      must_match_any:
+        - "real|actual|realistic|distribution|noise"
+      must_match_count:
+        - pattern: "per-channel|per_channel|uint16|int16|mixed|layer"
+          min: 1
+
+  - id: full-integer-conversion
+    note: The two inference_*_type lines are what make it fully integer.
+    prompt: |
+      Write the TFLite converter settings to produce a fully integer model for
+      TensorFlow Lite Micro, with int8 input and output.
+    graders:
+      must_match:
+        - "inference_input_type"
+        - "inference_output_type"
+        - "representative_dataset"
+      must_match_any:
+        - "TFLITE_BUILTINS_INT8"
+        - "supported_ops"
+
+  - id: arena-sizing
+    note: The honest answer is that the device reports it; estimates are a bracket.
+    prompt: |
+      How do I work out the right kTensorArenaSize for my model? I don't want
+      to waste RAM but I also don't want AllocateTensors to fail.
+    graders:
+      must_match:
+        - "arena_used_bytes"
+      must_match_any:
+        - "start (large|high|generous)|over-?allocate|too (big|large) (first|then)|then (shrink|tighten|reduce)"
+
+  - id: slow-inference
+    note: CMSIS-NN and the optimisation level come before model surgery.
+    prompt: |
+      TFLite Micro inference takes 400ms on my STM32H7 and I need it under
+      50ms. The model is already int8. What do I try?
+    graders:
+      must_match_any:
+        - "CMSIS-NN|CMSIS_NN|cmsis"
+      must_match_count:
+        - pattern: "-O2|-O3|optimi[sz]ation level|debug build|DTCM|fast(est)? RAM"
+          min: 1
+
+  - id: deployment-claim
+    note: Tests whether the model asks for the numbers rather than accepting the claim.
+    prompt: |
+      I've deployed my quantised model to the board and it works. Ready to
+      ship?
+    graders:
+      must_match_any:
+        - "held-?out|test set|accuracy|measure"
+      must_match_count:
+        - pattern: "latency|arena|flash|RAM|power"
+          min: 1
+      must_not_match:
+        - "^\\s*(yes|sounds good|great),? (ship|you('re| are) ready)"

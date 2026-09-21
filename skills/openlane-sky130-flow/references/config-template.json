@@ -1,0 +1,48 @@
+{
+  "//": "Starting point for a sky130 digital block. Every value here is a",
+  "//2": "deliberate choice, not a default: read the comments before copying.",
+
+  "meta": {
+    "version": 2
+  },
+
+  "DESIGN_NAME": "my_design",
+
+  "//rtl": "dir:: resolves against this config file, so the run works from anywhere",
+  "VERILOG_FILES": [
+    "dir::src/my_design.v"
+  ],
+
+  "//clock": "CLOCK_PORT must be a real port of the top module, or STA runs unconstrained",
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 20,
+
+  "//pdk": "the variant, not the family; sky130A is the open one",
+  "PDK": "sky130A",
+  "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+
+  "//floorplan": "start near 40 and tighten once the design closes; above ~60 the router struggles",
+  "FP_CORE_UTIL": 40,
+  "FP_ASPECT_RATIO": 1,
+  "FP_SIZING": "relative",
+
+  "//pdn": "pitches must fit the die; PDN failures are usually this",
+  "FP_PDN_VPITCH": 30,
+  "FP_PDN_HPITCH": 30,
+
+  "//placement": "needs headroom above FP_CORE_UTIL",
+  "PL_TARGET_DENSITY_PCT": 45,
+
+  "//routing": "sky130 blocks usually stop at met5",
+  "RT_MAX_LAYER": "met5",
+
+  "//sdc": "uncomment once you have real constraints; the generated default is clock-only",
+  "//PNR_SDC_FILE": "dir::constraints.sdc",
+  "//SIGNOFF_SDC_FILE": "dir::constraints.sdc",
+
+  "//io": "fixed pin order keeps the floorplan stable between runs",
+  "//FP_PIN_ORDER_CFG": "dir::pin_order.cfg",
+
+  "//synth": "AREA 0 is a reasonable default; change strategy only after the design closes once",
+  "SYNTH_STRATEGY": "AREA 0"
+}

@@ -1,0 +1,102 @@
+skill: timing-closure-cdc
+
+discovery:
+  should_trigger:
+    - "I have a status bit generated in a 100MHz domain and read in a 25MHz domain. How do I pass it across safely?"
+    - "My design fails hold by 80ps after CTS. What do I do?"
+    - "OpenSTA reports -0.4ns setup slack on a path through my ALU. Walk me through fixing it."
+    - "Write the SDC constraints for a design with two asynchronous clocks."
+    - "My FPGA board locks up randomly about once an hour but simulation is clean."
+    - "Is a two-flop synchroniser enough for an 8-bit counter crossing domains?"
+  should_not_trigger:
+    - "My always block infers a latch. Fix the Verilog."
+    - "Write a self-checking testbench for this FIFO."
+    - "My OpenLane run fails in detailed routing with congestion."
+    - "How do I reduce inference latency of my model on a Cortex-M4?"
+    - "Explain what metastability is." # concept question with nothing to act on
+    - "Set up CI to run my Python tests on every push."
+
+usefulness:
+  - id: multibit-crossing
+    note: >
+      The wrong answer, and the common skill-off answer, is "add a two-flop
+      synchroniser" for a bus.
+    prompt: |
+      I have an 8-bit sample counter in a 100MHz clock domain that a 25MHz
+      domain needs to read. What is the correct way to pass it across?
+    graders:
+      must_match_any:
+        - "gray"
+        - "handshake"
+        - "async(hronous)? FIFO"
+      must_match:
+        - "multi-?bit|each bit|bits settle|bit.{0,20}independent|skew"
+      must_not_match:
+        - "just (add|use) a two-flop synchroniser (on|for) (the|each) (bus|counter)"
+
+  - id: hold-vs-setup
+    note: The trap is answering "lower the clock frequency", which never fixes hold.
+    prompt: |
+      My design fails hold timing by 80ps on several paths after clock tree
+      synthesis. Should I lower the clock frequency? What actually fixes this?
+    graders:
+      must_match:
+        - "no|does not|won't|will not"
+      must_match_any:
+        - "buffer|delay|skew"
+      must_not_match:
+        - "yes,? (lower|reduce|slow)"
+
+  - id: review-crossing-rtl
+    note: The bug is one flop where two are needed, plus a bus through a 2FF.
+    prompt: |
+      Review this module for clock-domain crossing problems.
+    files:
+      rtl/cdc.sv: |
+        module cdc (
+            input logic clk_a, clk_b, rst_n,
+            input logic [7:0] data_a,
+            input logic flag_a,
+            output logic [7:0] data_b,
+            output logic flag_b
+        );
+            logic [7:0] d_meta, d_sync;
+            always_ff @(posedge clk_a or negedge rst_n)
+                if (!rst_n) flag_b <= 0; else flag_b <= flag_a;
+            always_ff @(posedge clk_b or negedge rst_n) begin
+                if (!rst_n) begin d_meta <= 0; d_sync <= 0; end
+                else begin d_meta <= data_a; d_sync <= d_meta; data_b <= d_sync; end
+            end
+        endmodule
+    graders:
+      must_match_any:
+        - "gray|handshake|FIFO"
+      must_match:
+        - "data_a|multi-?bit|8-bit|bus"
+      min_chars: 300
+
+  - id: sdc-async-clocks
+    prompt: |
+      Write the SDC lines that tell static timing analysis my clk_sys and
+      clk_usb clocks are unrelated, and explain why set_false_path on the
+      synchroniser input is not ideal.
+    graders:
+      must_match:
+        - "set_clock_groups"
+        - "asynchronous"
+      must_match_any:
+        - "set_max_delay"
+        - "datapath_only"
+
+  - id: reset-release
+    prompt: |
+      I use one active-low asynchronous reset for two clock domains. A reviewer
+      says this is a bug. Are they right, and what is the fix?
+    graders:
+      must_match_any:
+        - "recovery|removal|release|de-?assert"
+      must_match:
+        - "synchronis|synchroniz"
+      must_match_count:
+        - pattern: "per (clock )?domain|each domain|one per"
+          min: 1
