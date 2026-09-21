@@ -8,7 +8,7 @@ PyYAML>=6.0
 # For skills/onnx-quantize-tflm/scripts/quantize_onnx.py and the smoke test.
 numpy>=1.24
 onnx>=1.15
-onnxruntime>=1.17
+onnxruntime>=1.30.0
 
 # For skills/onnx-quantize-tflm/scripts/tflite_report.py. Not installed in CI,
 # so that script's report path is not covered by the test suite.
