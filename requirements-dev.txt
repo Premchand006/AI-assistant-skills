@@ -9,6 +9,10 @@ PyYAML>=6.0
 numpy>=1.24
 onnx>=1.15
 onnxruntime>=1.17
+# quant_pre_process(..., skip_symbolic_shape=False) imports sympy for symbolic
+# shape inference. onnxruntime does not declare it, so a fresh environment
+# without this line fails the smoke test with an ImportError.
+sympy>=1.12
 
 # For skills/onnx-quantize-tflm/scripts/tflite_report.py. Not installed in CI,
 # so that script's report path is not covered by the test suite.

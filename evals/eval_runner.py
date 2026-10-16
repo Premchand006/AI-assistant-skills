@@ -18,22 +18,94 @@ Usefulness scoring is deliberately dumb: each case lists graders, a case scores
 pass only if every grader passes, and the headline number is
 (cases passed with skill) vs (cases passed without it) over the same prompts.
 Read docs/eval-methodology.md for what a pass does and does not prove.
+
+Every generation carries a status. Only `ok` responses reach the graders; a
+missing transcript, a runner error or a timeout is reported as what it is and
+never graded as if the model had said it.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MODEL = "claude-sonnet-5"
 DEFAULT_JUDGE_MODEL = "claude-sonnet-5"
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+
+# Skill names and case ids become path components under the transcript root,
+# so they are held to a conservative slug: no separators, no "..", no leading
+# dot or dash.
+KEY_PART = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+
+# Generation statuses. Only OK is graded.
+OK = "ok"
+MISSING = "missing"          # replay: no transcript recorded
+EMPTY = "empty"              # the model (or transcript) returned nothing
+RUNNER_ERROR = "runner_error"
+TIMEOUT = "timeout"
+FAILED_STATUSES = (RUNNER_ERROR, TIMEOUT)
+
+# Legacy marker the cli runner used to write into the response text.
+RUNNER_ERROR_PREFIX = "[runner error]"
+
+
+@dataclass
+class Generation:
+    status: str
+    text: str = ""
+    error: str = ""
+    latency_ms: int = 0
+    usage: dict = field(default_factory=dict)
+
+    @property
+    def ok(self) -> bool:
+        return self.status == OK
+
+
+def classify_text(text: str) -> Generation:
+    """Turn raw response text into a Generation, catching empty output."""
+    if not text.strip():
+        return Generation(EMPTY, text)
+    if text.lstrip().startswith(RUNNER_ERROR_PREFIX):
+        return Generation(RUNNER_ERROR, "", error=text.strip())
+    return Generation(OK, text)
+
+
+def check_key_part(value: str, what: str) -> str:
+    if not KEY_PART.match(value or ""):
+        raise ValueError(
+            "%s %r is not a safe slug (allowed: %s)" % (what, value, KEY_PART.pattern)
+        )
+    return value
+
+
+def transcript_path(root: Path, key: str) -> Path:
+    """Resolve `key` under `root`, refusing anything that would escape it."""
+    parts = key.split("/")
+    for p in parts:
+        check_key_part(p, "transcript key component")
+    root = root.resolve()
+    path = root.joinpath(*parts[:-1], parts[-1] + ".md").resolve()
+    try:
+        path.relative_to(root)
+    except ValueError:
+        raise ValueError("transcript key %r resolves outside %s" % (key, root))
+    return path
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 # --------------------------------------------------------------------------
@@ -59,6 +131,7 @@ class Suite:
     cases: list
     should_trigger: list
     should_not_trigger: list
+    suite_hash: str = ""
 
 
 def _require_yaml():
@@ -75,7 +148,6 @@ def _require_yaml():
 
 
 def frontmatter_description(skill_md_text: str) -> str:
-    sys.path.insert(0, str(REPO_ROOT / "tools"))
     from validate_skills import parse_frontmatter, split_frontmatter  # type: ignore
 
     fm_text, _ = split_frontmatter(skill_md_text)
@@ -93,11 +165,18 @@ def load_suites(skills_dir: Path, only: list) -> list:
         skill_md = d / "SKILL.md"
         if not eval_path.is_file() or not skill_md.is_file():
             continue
-        data = yaml.safe_load(eval_path.read_text(encoding="utf-8")) or {}
+        check_key_part(d.name, "skill directory")
+        eval_text = eval_path.read_text(encoding="utf-8")
+        data = yaml.safe_load(eval_text) or {}
         md = skill_md.read_text(encoding="utf-8")
         discovery = data.get("discovery") or {}
         cases = []
+        seen = set()
         for c in data.get("usefulness") or []:
+            check_key_part(str(c.get("id", "")), "%s case id" % d.name)
+            if c["id"] in seen:
+                raise ValueError("%s: duplicate case id %r" % (eval_path, c["id"]))
+            seen.add(c["id"])
             cases.append(
                 Case(
                     id=c["id"],
@@ -116,6 +195,7 @@ def load_suites(skills_dir: Path, only: list) -> list:
                 cases=cases,
                 should_trigger=list(discovery.get("should_trigger") or []),
                 should_not_trigger=list(discovery.get("should_not_trigger") or []),
+                suite_hash=sha256_text(md + "\0" + eval_text),
             )
         )
     return suites
@@ -135,50 +215,87 @@ class ReplayRunner:
         self.root = root
         self.missing = []
 
-    def generate(self, prompt: str, system: str = "", key: str = "") -> str:
-        path = self.root / (key + ".md")
+    def generate(self, prompt: str, system: str = "", key: str = "") -> Generation:
+        path = transcript_path(self.root, key)
         if not path.is_file():
             self.missing.append(key)
-            return ""
-        return path.read_text(encoding="utf-8")
+            return Generation(MISSING)
+        return classify_text(path.read_text(encoding="utf-8"))
 
 
-class CliRunner:
+class LiveRunner:
+    """Shared recording for the runners that call a model."""
+
+    def __init__(self, record_to: Path = None):
+        self.record_to = record_to
+        self.quarantined = []
+
+    def _record(self, key: str, gen: Generation):
+        # Only successful responses become transcripts: a recorded error would
+        # be replayed later as if the model had said it.
+        if not self.record_to or not key or not gen.ok:
+            return
+        from check_transcripts import scan_text  # type: ignore
+
+        hits = scan_text(gen.text)
+        if hits:
+            # Graded for this run, but not written where it would be committed.
+            self.quarantined.append((key, hits))
+            dest = transcript_path(REPO_ROOT / "evals" / "out" / "quarantine", key)
+        else:
+            dest = transcript_path(self.record_to, key)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(gen.text, encoding="utf-8")
+
+
+class CliRunner(LiveRunner):
     """One `claude -p` invocation per case."""
 
     name = "cli"
 
     def __init__(self, model: str, record_to: Path = None, timeout: int = 900):
+        super().__init__(record_to)
+        if not shutil.which("claude"):
+            print("the cli runner needs the `claude` binary on PATH", file=sys.stderr)
+            raise SystemExit(2)
         self.model = model
-        self.record_to = record_to
         self.timeout = timeout
 
-    def generate(self, prompt: str, system: str = "", key: str = "") -> str:
+    def generate(self, prompt: str, system: str = "", key: str = "") -> Generation:
         full = (system + "\n\n" + prompt) if system else prompt
         cmd = ["claude", "-p", full, "--output-format", "text", "--model", self.model]
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=self.timeout, shell=False
-        )
-        out = proc.stdout.strip()
-        if proc.returncode != 0 and not out:
-            out = "[runner error] " + proc.stderr.strip()
-        self._record(key, out)
-        return out
+        start = time.monotonic()
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=self.timeout, shell=False
+            )
+        except subprocess.TimeoutExpired:
+            return Generation(TIMEOUT, error="no response in %ds" % self.timeout,
+                              latency_ms=int((time.monotonic() - start) * 1000))
+        except OSError as e:
+            return Generation(RUNNER_ERROR, error=str(e))
+        latency = int((time.monotonic() - start) * 1000)
+        if proc.returncode != 0:
+            gen = Generation(
+                RUNNER_ERROR,
+                error="exit %d: %s" % (proc.returncode, proc.stderr.strip()[:500]),
+                latency_ms=latency,
+            )
+        else:
+            gen = classify_text(proc.stdout.strip())
+            gen.latency_ms = latency
+        self._record(key, gen)
+        return gen
 
-    def _record(self, key: str, text: str):
-        if not self.record_to or not key:
-            return
-        path = self.record_to / (key + ".md")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
 
-
-class ApiRunner:
+class ApiRunner(LiveRunner):
     """Anthropic Messages API. Keeps the on/off comparison strictly controlled."""
 
     name = "api"
 
-    def __init__(self, model: str, record_to: Path = None, max_tokens: int = 4096):
+    def __init__(self, model: str, record_to: Path = None, max_tokens: int = 4096,
+                 max_retries: int = 5):
+        super().__init__(record_to)
         try:
             import anthropic  # type: ignore
         except ImportError:
@@ -190,12 +307,14 @@ class ApiRunner:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             print("ANTHROPIC_API_KEY is not set", file=sys.stderr)
             raise SystemExit(2)
-        self.client = anthropic.Anthropic()
+        self.anthropic = anthropic
+        # The SDK retries 429, 5xx and connection errors with exponential
+        # backoff; raise its default so a long run survives transient limits.
+        self.client = anthropic.Anthropic(max_retries=max_retries)
         self.model = model
-        self.record_to = record_to
         self.max_tokens = max_tokens
 
-    def generate(self, prompt: str, system: str = "", key: str = "") -> str:
+    def generate(self, prompt: str, system: str = "", key: str = "") -> Generation:
         kwargs = dict(
             model=self.model,
             max_tokens=self.max_tokens,
@@ -203,13 +322,25 @@ class ApiRunner:
         )
         if system:
             kwargs["system"] = system
-        resp = self.client.messages.create(**kwargs)
+        start = time.monotonic()
+        try:
+            resp = self.client.messages.create(**kwargs)
+        except self.anthropic.APITimeoutError as e:
+            return Generation(TIMEOUT, error=str(e))
+        except self.anthropic.APIError as e:
+            return Generation(RUNNER_ERROR, error="%s: %s" % (type(e).__name__, e))
         text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
-        if self.record_to and key:
-            path = self.record_to / (key + ".md")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8")
-        return text
+        gen = classify_text(text)
+        gen.latency_ms = int((time.monotonic() - start) * 1000)
+        usage = getattr(resp, "usage", None)
+        gen.usage = {
+            "input_tokens": getattr(usage, "input_tokens", None),
+            "output_tokens": getattr(usage, "output_tokens", None),
+            "request_id": getattr(resp, "_request_id", None),
+            "stop_reason": getattr(resp, "stop_reason", None),
+        }
+        self._record(key, gen)
+        return gen
 
 
 def build_runner(args, record_root: Path):
@@ -298,13 +429,20 @@ def run_usefulness(suite: Suite, runner, modes) -> list:
         for mode in modes:
             system = SKILL_ON_PREAMBLE % suite.skill_md if mode == "on" else ""
             key = "%s/%s.%s" % (suite.skill, case.id, mode)
-            text = runner.generate(prompt, system=system, key=key)
-            checks = apply_graders(text, case.graders)
+            gen = runner.generate(prompt, system=system, key=key)
+            # Never grade an error message or a missing response as model output.
+            checks = apply_graders(gen.text, case.graders) if gen.ok else []
             row["modes"][mode] = {
-                "passed": bool(checks) and all(c["passed"] for c in checks),
+                "status": gen.status,
+                "available": gen.ok,
+                "passed": gen.ok and bool(checks) and all(c["passed"] for c in checks),
                 "checks": checks,
-                "chars": len(text),
-                "available": bool(text),
+                "chars": len(gen.text),
+                "error": gen.error,
+                "latency_ms": gen.latency_ms,
+                "usage": gen.usage,
+                "prompt_sha256": sha256_text(system + "\0" + prompt),
+                "response_sha256": sha256_text(gen.text) if gen.ok else "",
             }
         rows.append(row)
     return rows
@@ -329,26 +467,22 @@ def run_discovery(suites: list, runner, target: Suite) -> dict:
         "- %s: %s" % (s.skill, s.description) for s in suites
     )
     results = {"should_trigger": [], "should_not_trigger": []}
-    for i, prompt in enumerate(target.should_trigger):
-        key = "%s/discovery.pos%d" % (target.skill, i)
-        raw = runner.generate(
-            DISCOVERY_JUDGE.format(catalog=catalog, prompt=prompt), key=key
-        )
-        picked = raw.strip().splitlines()[0].strip() if raw.strip() else ""
-        results["should_trigger"].append(
-            {"prompt": prompt, "picked": picked, "passed": picked == target.skill,
-             "available": bool(raw)}
-        )
-    for i, prompt in enumerate(target.should_not_trigger):
-        key = "%s/discovery.neg%d" % (target.skill, i)
-        raw = runner.generate(
-            DISCOVERY_JUDGE.format(catalog=catalog, prompt=prompt), key=key
-        )
-        picked = raw.strip().splitlines()[0].strip() if raw.strip() else ""
-        results["should_not_trigger"].append(
-            {"prompt": prompt, "picked": picked, "passed": picked != target.skill,
-             "available": bool(raw)}
-        )
+    for family, tag, prompts, want in (
+        ("should_trigger", "pos", target.should_trigger, True),
+        ("should_not_trigger", "neg", target.should_not_trigger, False),
+    ):
+        for i, prompt in enumerate(prompts):
+            key = "%s/discovery.%s%d" % (target.skill, tag, i)
+            gen = runner.generate(
+                DISCOVERY_JUDGE.format(catalog=catalog, prompt=prompt), key=key
+            )
+            picked = gen.text.strip().splitlines()[0].strip() if gen.ok else ""
+            hit = picked == target.skill
+            results[family].append(
+                {"prompt": prompt, "picked": picked, "status": gen.status,
+                 "available": gen.ok, "error": gen.error,
+                 "passed": gen.ok and (hit if want else not hit)}
+            )
     return results
 
 
@@ -368,8 +502,8 @@ def summarise(report: dict) -> list:
         disc = data["discovery"]
         pos = disc.get("should_trigger", [])
         neg = disc.get("should_not_trigger", [])
-        pos_graded = [p for p in pos if p.get("available")]
-        neg_graded = [n for n in neg if n.get("available")]
+        statuses = [m.get("status", MISSING) for r in use for m in r["modes"].values()]
+        statuses += [p.get("status", MISSING) for p in pos + neg]
         rows.append(
             {
                 "skill": skill,
@@ -377,15 +511,45 @@ def summarise(report: dict) -> list:
                 "graded": len(graded),
                 "on": on,
                 "off": off,
-                "discovery_hit": "%d/%d" % (sum(1 for p in pos_graded if p["passed"]), len(pos))
-                if pos_graded
-                else "-",
-                "adversarial_clean": "%d/%d" % (sum(1 for n in neg_graded if n["passed"]), len(neg))
-                if neg_graded
-                else "-",
+                "discovery_hit": _ratio(pos),
+                "adversarial_clean": _ratio(neg),
+                "missing": statuses.count(MISSING),
+                "errors": sum(statuses.count(s) for s in FAILED_STATUSES),
             }
         )
     return rows
+
+
+def _ratio(items: list) -> str:
+    """passed/graded, plus the total when some prompts were not graded."""
+    graded = [i for i in items if i.get("available")]
+    if not graded:
+        return "-"
+    text = "%d/%d" % (sum(1 for i in graded if i["passed"]), len(graded))
+    if len(graded) < len(items):
+        text += " (of %d)" % len(items)
+    return text
+
+
+def git_state() -> dict:
+    def run(*cmd):
+        try:
+            return subprocess.run(
+                ["git", *cmd], cwd=REPO_ROOT, capture_output=True, text=True,
+                timeout=30, shell=False,
+            ).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    return {"commit": run("rev-parse", "HEAD"), "dirty": bool(run("status", "--porcelain"))}
+
+
+def environment() -> dict:
+    return {
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "git": git_state(),
+    }
 
 
 def markdown_table(rows: list, runner_name: str, model: str, when: str) -> str:
@@ -448,16 +612,32 @@ def main() -> int:
         default=None,
         help="exit 1 unless skill-on pass rate over graded cases is at least this (0-1)",
     )
+    ap.add_argument(
+        "--fail-on-missing",
+        action="store_true",
+        help="exit 1 if any expected transcript is missing (use for evidence/release CI)",
+    )
     args = ap.parse_args()
 
-    suites = load_suites(Path(args.skills_dir), args.skill)
+    try:
+        suites = load_suites(Path(args.skills_dir), args.skill)
+    except (ValueError, KeyError) as e:
+        print("invalid eval suite: %s" % e, file=sys.stderr)
+        return 2
     if not suites:
         print("no eval suites found", file=sys.stderr)
         return 2
 
     runner = build_runner(args, Path(args.transcripts))
     when = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
-    report = {"generated": when, "runner": runner.name, "model": args.model, "skills": {}}
+    report = {
+        "generated": when,
+        "runner": runner.name,
+        "model": args.model,
+        "environment": environment(),
+        "suite_hashes": {s.skill: s.suite_hash for s in suites},
+        "skills": {},
+    }
 
     for suite in suites:
         print("== %s" % suite.skill)
@@ -475,8 +655,13 @@ def main() -> int:
         for row in usefulness:
             on = row["modes"].get("on", {})
             off = row["modes"].get("off", {})
-            if not on.get("available"):
+            if on.get("status") == MISSING:
                 print("   %-28s no transcript (run with --runner cli --record)" % row["case"])
+                continue
+            if not on.get("available") or not off.get("available"):
+                print("   %-28s not graded: on=%s off=%s %s"
+                      % (row["case"], on.get("status"), off.get("status"),
+                         on.get("error") or off.get("error")))
                 continue
             print(
                 "   %-28s on=%s off=%s"
@@ -504,11 +689,32 @@ def main() -> int:
         else:
             print("README has no EVAL-RESULTS markers; left alone", file=sys.stderr)
 
+    status = 0
     if isinstance(runner, ReplayRunner) and runner.missing:
         print(
             "\n%d case(s) had no recorded transcript; they are reported as "
             "'not run', not as passes." % len(runner.missing)
         )
+        if args.fail_on_missing:
+            print("--fail-on-missing: transcripts are incomplete", file=sys.stderr)
+            status = 1
+
+    if isinstance(runner, LiveRunner) and runner.quarantined:
+        print(
+            "\n%d response(s) looked like they contain secrets or personal data and "
+            "were written to evals/out/quarantine/ instead of evals/transcripts/:"
+            % len(runner.quarantined), file=sys.stderr,
+        )
+        for key, hits in runner.quarantined:
+            print("  %s: %s" % (key, ", ".join(sorted({h[0] for h in hits}))),
+                  file=sys.stderr)
+
+    errors = sum(r["errors"] for r in rows)
+    if errors:
+        # An operational failure is not a model result; the run is incomplete.
+        print("\n%d generation(s) failed (runner error or timeout); see %s"
+              % (errors, out), file=sys.stderr)
+        status = 1
 
     if args.fail_under is not None:
         graded = sum(r["graded"] for r in rows)
@@ -518,7 +724,7 @@ def main() -> int:
         if graded == 0 or rate < args.fail_under:
             print("below --fail-under %.2f" % args.fail_under, file=sys.stderr)
             return 1
-    return 0
+    return status
 
 
 if __name__ == "__main__":

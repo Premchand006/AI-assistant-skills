@@ -31,6 +31,14 @@ python3 evals/eval_runner.py --skill rtl-verilog-lint --runner cli --record
 python3 evals/eval_runner.py --runner api --record --model claude-sonnet-5
 ```
 
+Only successful responses are recorded. A runner error or timeout is reported
+in `evals/out/results.json` and never written here, so it cannot be replayed as
+if the model had said it. A response that matches the secret and personal-data
+scan in `tools/check_transcripts.py` is written to `evals/out/quarantine/`
+instead; inspect it, and do not copy it here unless the match is a false
+positive (mark that line with `transcript-scan: allow`). CI runs the same scan
+over this directory.
+
 When you commit transcripts, say in the pull request which model and version
 produced them. Results do not transfer between models, and a table whose
 provenance is unrecorded is not evidence.

@@ -23,8 +23,7 @@ make. That mistake is the real proposal.
 git clone https://github.com/Premchand006/AI-assistant-skills
 cd AI-assistant-skills
 python3 -m pip install -r requirements-dev.txt
-python3 tools/validate_skills.py --strict
-python3 tools/test_scripts.py
+make check        # or run the tools/ scripts it lists one by one
 ```
 
 ## Adding a skill
@@ -68,6 +67,9 @@ wrong.
   it must stay quiet on.
 - `python3 tools/smoke_imports.py` passes; a script whose dependency is missing
   prints how to install it rather than raising a traceback.
+- Case ids in `eval.yaml` are lowercase slugs (`[a-z0-9][a-z0-9._-]*`) and
+  unique within the file; they become transcript filenames, and the harness
+  refuses anything else.
 - At least three usefulness cases where the skill-off answer is plausibly
   wrong. A case both modes pass measures nothing, and reviewers will ask you to
   replace it.
@@ -76,7 +78,9 @@ wrong.
 
 Recorded transcripts are welcome but not required for a first pull request;
 maintainers can record them. If you do record them, say which model and version
-produced them.
+produced them, and make sure `python3 tools/check_transcripts.py` passes.
+Fixtures are sent to the model provider during a live run, so they must be
+synthetic or licensed for redistribution — never proprietary RTL or firmware.
 
 ## House style
 

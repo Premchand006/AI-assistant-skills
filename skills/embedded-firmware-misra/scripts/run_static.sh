@@ -23,16 +23,23 @@ if [[ -z "$PYTHON" ]]; then
 fi
 if [[ -z "$PYTHON" ]]; then
   echo "no Python interpreter found (tried python3, python, py)." >&2
-  echo "Install Python 3.8+ or set PYTHON=/path/to/python and re-run." >&2
+  echo "Install Python 3.10+ or set PYTHON=/path/to/python and re-run." >&2
   exit 2
 fi
+
+# A path that starts with "-" would be read as an option by the tools below.
+safe_path() { if [[ "$1" == -* ]]; then printf './%s' "$1"; else printf '%s' "$1"; fi; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --misra) MISRA=1; shift ;;
-    --compile-db) COMPILE_DB="$2"; shift 2 ;;
+    --compile-db)
+      if [[ $# -lt 2 || -z "$2" ]]; then echo "--compile-db needs a path" >&2; exit 2; fi
+      if [[ ! -f "$2" ]]; then echo "--compile-db: no such file: $2" >&2; exit 2; fi
+      COMPILE_DB="$2"; shift 2 ;;
     -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
-    *) TARGETS+=("$1"); shift ;;
+    --) shift; while [[ $# -gt 0 ]]; do TARGETS+=("$(safe_path "$1")"); shift; done ;;
+    *) TARGETS+=("$(safe_path "$1")"); shift ;;
   esac
 done
 
@@ -85,7 +92,7 @@ if command -v clang-tidy >/dev/null 2>&1; then
   SOURCES=()
   for t in "${TARGETS[@]}"; do
     if [[ -d "$t" ]]; then
-      while IFS= read -r f; do SOURCES+=("$f"); done < <(find "$t" -name '*.c')
+      while IFS= read -r -d '' f; do SOURCES+=("$f"); done < <(find "$t" -name '*.c' -print0)
     else
       SOURCES+=("$t")
     fi

@@ -36,6 +36,9 @@ def require(module: str, install: str):
 np = require("numpy", "numpy")
 require("onnx", "onnx")
 require("onnxruntime", "onnxruntime")
+# Not a dependency onnxruntime declares, but quant_pre_process imports it for
+# symbolic shape inference; without it the failure surfaces mid-run.
+require("sympy", "sympy")
 
 import onnxruntime  # noqa: E402
 from onnxruntime.quantization import (  # noqa: E402

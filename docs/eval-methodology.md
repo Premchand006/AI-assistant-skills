@@ -91,6 +91,43 @@ you nothing new about the current model. Re-record when the model changes.
 A case with no recorded transcript is reported as **not run**, never as a pass.
 The summary states how many fell into that category.
 
+### Statuses and exit codes
+
+Every response carries a status, and only `ok` reaches the graders:
+
+| Status | Meaning |
+|---|---|
+| `ok` | the model answered; graded |
+| `missing` | replay found no transcript; reported as not run |
+| `empty` | the model or transcript returned nothing; not graded |
+| `runner_error` | the CLI exited non-zero or the API raised; not graded |
+| `timeout` | no response in time; not graded |
+
+A failed call is never written as a transcript, so it cannot be replayed later
+as if the model had said it. Discovery prompts follow the same rule: a failed
+call picks nothing, and that no longer counts as "correctly stayed quiet".
+Discovery columns read `passed/graded`, with `(of N)` appended when some
+prompts were not graded.
+
+The runner exits 1 on any `runner_error` or `timeout`, because the run is
+incomplete. Missing transcripts exit 0 by default, so a contributor can preview
+a partial suite; `--fail-on-missing` makes them fatal, and the release-tag CI
+job uses it.
+
+`results.json` records the commit and dirty state, Python and OS, a SHA-256 of
+each skill's `SKILL.md` plus `eval.yaml`, and per response the prompt hash,
+response hash, latency and (API runner) token usage and request id.
+
+### Privacy of live runs
+
+`cli` and `api` send the full prompt, the case's fixture files and, in skill-on
+mode, the whole `SKILL.md` to the provider. Do not put proprietary RTL,
+firmware or customer data into fixtures. Before a response is recorded,
+`tools/check_transcripts.py` scans it for credentials, private keys, e-mail
+addresses, home-directory paths and confidentiality markers; a hit is written
+to `evals/out/quarantine/` (git-ignored) instead of `evals/transcripts/`. The
+scan is pattern-based; review transcripts before committing them.
+
 ## Reading the numbers correctly
 
 "4/5 with the skill, 1/5 without" means: across five cases *chosen because the
@@ -124,8 +161,11 @@ currently backed by evidence:
 |---|---|
 | `tools/validate_skills.py --strict` | every skill meets the frontmatter, size and style rules |
 | `tools/test_scripts.py` | every bundled checker finds the planted defects in the fixtures and stays quiet on the clean ones |
+| `tools/test_eval_runner.py` | runner errors, timeouts and missing transcripts are never graded; transcript keys cannot escape the transcript root |
+| `tools/check_transcripts.py` | committed transcripts contain no recognisable secrets or personal data |
 | `tools/smoke_imports.py` | every script compiles, dependency-missing paths explain themselves, the ONNX quantisation runs end to end |
 | `evals/eval_runner.py --runner replay` | the results table follows from the committed transcripts |
+| `--fail-on-missing`, on release tags only | every published result has a committed transcript behind it |
 
 None of these establish that a skill improves model output. That is what the
 usefulness family is for, and until transcripts are recorded the README says

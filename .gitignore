@@ -4,9 +4,23 @@ __pycache__/
 venv/
 .DS_Store
 *.egg-info/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local credentials. Never commit a key; the SDK reads ANTHROPIC_API_KEY from
+# the environment.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # EDA / build artifacts
 runs/
+# The OpenLane checker test needs a committed failed-run fixture; `runs/` above
+# would otherwise swallow it and a fresh clone would fail tools/test_scripts.py.
+!evals/fixtures/openlane/runs/
 obj_dir/
 *.vcd
 *.fst
@@ -20,3 +34,4 @@ results/
 # Eval output (transcripts under evals/transcripts/ are committed on purpose)
 evals/out/
 .eval-cache/
+*.provider.log

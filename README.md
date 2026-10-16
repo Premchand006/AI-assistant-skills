@@ -56,7 +56,7 @@ cdc_mixed.sv:36: error: [multibit-2ff] multi-bit signal 'data_fast' crosses
           that never existed; use gray coding, a handshake, or an async FIFO
 ```
 
-The checkers need Python 3.8+ and nothing else — no EDA tools, no ML
+The checkers need Python 3.10+ (the versions CI tests) and nothing else — no EDA tools, no ML
 libraries. On Windows use `python` in place of `python3`; the two wrapper
 scripts (`lint_rtl.sh`, `run_static.sh`) find the interpreter themselves and
 accept `PYTHON=...` to override it.
@@ -91,6 +91,12 @@ python3 evals/eval_runner.py --runner cli --record   # calls `claude -p` per cas
 python3 evals/eval_runner.py --runner replay         # re-grade, no API key
 ```
 
+A live run sends each prompt, its fixture files and (in skill-on mode) the full
+`SKILL.md` to the model provider. Use only material you are allowed to share.
+Responses are scanned before they are written to `evals/transcripts/`; anything
+that looks like a credential or personal data goes to `evals/out/quarantine/`
+instead. See [SECURITY.md](SECURITY.md).
+
 `--runner replay` re-grades the committed transcripts, so anyone can check the
 table, disagree with a grader, and show it. A results table nobody can
 reproduce is a marketing claim; this one is meant to be attacked.
@@ -121,14 +127,20 @@ Run these yourself; they are what CI runs on every push.
 ```bash
 python3 tools/validate_skills.py --strict   # 7/7 skills pass
 python3 tools/test_scripts.py               # 8/8 script checks pass
-python3 tools/smoke_imports.py              # 13 scripts compile; ONNX path runs
+python3 tools/test_eval_runner.py           # eval harness failure semantics
+python3 tools/check_transcripts.py          # no secrets in committed transcripts
+python3 tools/smoke_imports.py              # 15 scripts compile; ONNX path runs
 ```
+
+`make check` runs all of these. These numbers hold on a fresh clone with
+`pip install -r requirements-dev.txt`, which is what CI starts from.
 
 | Claim | Evidence |
 |---|---|
 | Every skill meets the frontmatter and size budgets | `tools/validate_skills.py --strict`, in CI |
 | Every checker finds the planted defects and stays quiet on clean fixtures | `tools/test_scripts.py`, 8 cases, in CI |
 | The ONNX quantisation path runs end to end and reports accuracy | `tools/smoke_imports.py`, against `evals/fixtures/edge/` |
+| A runner error, timeout or missing transcript is never graded as a model answer | `tools/test_eval_runner.py`, in CI |
 | The skills measurably improve model output | **not yet measured** — see the table above |
 | `tflite_report.py` produces a correct report | **not covered** — needs a real `.tflite` and an interpreter; only its dependency handling is tested |
 

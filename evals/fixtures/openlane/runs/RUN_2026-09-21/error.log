@@ -1,0 +1,2 @@
+ERROR: [ROUTING] Global routing finished with 37 violations
+ERROR: step openroad-globalrouting exited with code 1

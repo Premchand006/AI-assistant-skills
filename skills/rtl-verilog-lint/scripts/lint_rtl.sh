@@ -23,17 +23,30 @@ if [[ -z "$PYTHON" ]]; then
 fi
 if [[ -z "$PYTHON" ]]; then
   echo "no Python interpreter found (tried python3, python, py)." >&2
-  echo "Install Python 3.8+ or set PYTHON=/path/to/python and re-run." >&2
+  echo "Install Python 3.10+ or set PYTHON=/path/to/python and re-run." >&2
   exit 2
 fi
 
+# A path that starts with "-" would be read as an option by the tools below.
+safe_path() { if [[ "$1" == -* ]]; then printf './%s' "$1"; else printf '%s' "$1"; fi; }
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --top) TOP="$2"; shift 2 ;;
+    --top)
+      if [[ $# -lt 2 || -z "$2" ]]; then echo "--top needs a module name" >&2; exit 2; fi
+      TOP="$2"; shift 2 ;;
     -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
-    *) TARGETS+=("$1"); shift ;;
+    --) shift; while [[ $# -gt 0 ]]; do TARGETS+=("$(safe_path "$1")"); shift; done ;;
+    *) TARGETS+=("$(safe_path "$1")"); shift ;;
   esac
 done
+
+# The module name is interpolated into a Yosys script, so hold it to the
+# Verilog identifier grammar.
+if [[ -n "$TOP" && ! "$TOP" =~ ^[A-Za-z_][A-Za-z0-9_\$]*$ ]]; then
+  echo "--top '$TOP' is not a plain Verilog module name" >&2
+  exit 2
+fi
 
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
   echo "usage: $0 [--top MODULE] FILE_OR_DIR..." >&2
@@ -44,7 +57,7 @@ fi
 FILES=()
 for t in "${TARGETS[@]}"; do
   if [[ -d "$t" ]]; then
-    while IFS= read -r f; do FILES+=("$f"); done < <(find "$t" -type f \( -name '*.v' -o -name '*.sv' \))
+    while IFS= read -r -d '' f; do FILES+=("$f"); done       < <(find "$t" -type f \( -name '*.v' -o -name '*.sv' \) -print0)
   else
     FILES+=("$t")
   fi
@@ -82,9 +95,26 @@ fi
 echo
 echo "== yosys elaboration"
 if command -v yosys >/dev/null 2>&1 && [[ -n "$TOP" ]]; then
-  READ_CMDS=""
-  for f in "${FILES[@]}"; do READ_CMDS+="read_verilog -sv $f; "; done
-  if ! yosys -q -p "${READ_CMDS} hierarchy -top $TOP -check; proc; check -assert"; then
+  # Filenames go into a generated script rather than a `-p` string, quoted,
+  # and anything that could end a Yosys command or start a comment is refused,
+  # so a hostile filename cannot inject Yosys commands.
+  YS="$(mktemp "${TMPDIR:-/tmp}/lint_rtl.XXXXXX.ys")"
+  trap 'rm -f "$YS"' EXIT
+  UNSAFE=0
+  for f in "${FILES[@]}"; do
+    if [[ "$f" == *[\;\#\"]* || "$f" =~ [[:cntrl:]] ]]; then
+      echo "refusing to pass '$f' to yosys: name contains ; # \" or a control character" >&2
+      UNSAFE=1
+    else
+      printf 'read_verilog -sv "%s"
+' "$f" >> "$YS"
+    fi
+  done
+  printf 'hierarchy -top %s -check
+proc
+check -assert
+' "$TOP" >> "$YS"
+  if [[ $UNSAFE -ne 0 ]] || ! yosys -q -s "$YS"; then
     FAILED=1
   else
     echo "elaborated cleanly"

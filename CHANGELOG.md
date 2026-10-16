@@ -4,6 +4,35 @@
 
 ### Fixed
 
+- A fresh clone failed `tools/test_scripts.py` (7/8): the unanchored `runs/`
+  rule in `.gitignore` also ignored the OpenLane failed-run fixture under
+  `evals/fixtures/openlane/runs/`. The fixture is now re-included and committed.
+- A fresh `pip install -r requirements-dev.txt` failed the ONNX smoke test:
+  `quant_pre_process` needs `sympy` for symbolic shape inference and
+  onnxruntime does not declare it. Added to `requirements-dev.txt`;
+  `quantize_onnx.py` now says how to install it instead of failing mid-run.
+- `eval_runner.py` graded a failed `claude -p` call as model output: the
+  `[runner error] ...` text was non-empty, so it counted as an available
+  response. Every generation now has a status (`ok`, `missing`, `empty`,
+  `runner_error`, `timeout`); only `ok` is graded, failures are never recorded
+  as transcripts, timeouts and missing binaries are caught, and the runner
+  exits 1 when any generation failed. A failed discovery call no longer counts
+  as "correctly stayed quiet".
+- `eval_runner.py --record` built transcript paths from case ids without
+  checking them, so an id containing `../` could write outside
+  `evals/transcripts/`. Skill names and case ids must now be slugs, duplicates
+  are rejected, and every path is checked to resolve under its root.
+- `lint_rtl.sh` interpolated filenames into a `yosys -p` string, so a filename
+  containing `;` could inject Yosys commands. It now writes a quoted `.ys`
+  script and refuses names containing `;`, `#`, `"` or control characters;
+  `--top` must be a plain identifier.
+- `lint_rtl.sh` and `run_static.sh`: an option missing its argument
+  (`--top`, `--compile-db`) exits 2 with a message; directory scans are
+  null-delimited, so filenames with newlines survive; paths beginning with `-`
+  are passed as `./-...` so tools cannot read them as options.
+- README claimed Python 3.8+; CI tests 3.10, 3.12 and 3.13. The documented
+  minimum is now 3.10.
+
 - CI: `actions/setup-python` failed with "No file matched to
   `[**/requirements.txt or **/pyproject.toml]`" because the dependency file
   here is `requirements-dev.txt`. Added `cache-dependency-path`.
@@ -20,6 +49,22 @@
 
 ### Added
 
+- `tools/check_transcripts.py`: scans transcripts for credentials, private
+  keys, e-mail addresses, home-directory paths and confidentiality markers.
+  The recorder sends matching responses to `evals/out/quarantine/` instead of
+  `evals/transcripts/`; CI scans the committed directory.
+- `tools/test_eval_runner.py`: unit tests for the harness's failure semantics,
+  path containment, suite validation, exit codes and the transcript scan.
+- `--fail-on-missing` for `eval_runner.py`, and a `release evidence` CI job on
+  `v*` tags that uses it, so a release cannot publish results without
+  transcripts behind them. `make evidence` runs it locally.
+- `results.json` records the commit and dirty state, Python and OS, per-skill
+  suite hashes, and per-response prompt/response hashes, latency and token use.
+- The API runner retries 429/5xx/connection errors up to five times (SDK
+  backoff) and records failures instead of aborting the run.
+- `SECURITY.md`, `.env.example`, and `.gitignore` entries for `.env`, keys and
+  coverage output.
+
 - `.gitattributes` pinning shell and source files to LF, so a clone on Windows
   cannot produce CRLF scripts that fail on a Linux runner.
 - `.github/dependabot.yml` for monthly action and pip updates, so a runtime
@@ -32,6 +77,9 @@
 - CI now also tests on Python 3.13.
 
 ### Changed
+
+- CI actions are pinned to full commit SHAs (`actions/checkout` v7.0.1,
+  `actions/setup-python` v7.0.0); Dependabot bumps them.
 
 - Repository and plugin naming settled: marketplace `ai-assistant-skills`,
   plugin `silicon-skills`, owner `Premchand006`.
