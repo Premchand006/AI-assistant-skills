@@ -4,8 +4,8 @@
 
 Claude writes Verilog that simulates and will not synthesise, firmware that
 works on the bench and fails in the field, and quantised models with accuracy
-nobody measured. These seven skills fix the specific mistakes, bring a runnable
-checker each, and end by saying what they cannot see.
+nobody measured. These eleven skills fix the specific mistakes, bring runnable
+checkers and patterns, and end by saying what they cannot see.
 
 Every skill is graded three ways — does it change the answer, does it trigger
 when it should, does it stay quiet when it should not — and the transcripts are
@@ -25,6 +25,10 @@ committed so you can re-grade them yourself.
 | [`timing-closure-cdc`](skills/timing-closure-cdc/) | STA failures and clock-domain crossings: setup vs hold, synchroniser choice, SDC | `cdc_scan.py` |
 | [`openlane-sky130-flow`](skills/openlane-sky130-flow/) | RTL-to-GDSII on OpenLane 2 / Sky130: config, floorplan, congestion, sign-off | `check_config.py`, `summarize_run.py` |
 | [`embedded-firmware-misra`](skills/embedded-firmware-misra/) | Cortex-M firmware: ISR safety, `volatile` vs atomicity, registers, stack, MISRA | `check_isr_safety.py`, `run_static.sh` |
+| [`m5-onboard`](skills/m5-onboard/) | ESP32 and M5Stack boards: USB detection, bootloader download mode, firmware flashing, MicroPython | `esptool.py`, `mpremote` |
+| [`cpp-coding-standards`](skills/cpp-coding-standards/) | Modern C++ (C++17/20/23): ISO Core Guidelines, RAII, Rule of Zero/Five, memory safety | `core-guidelines.md` reference |
+| [`cpp-testing`](skills/cpp-testing/) | GoogleTest, GoogleMock, and CTest: test layout, fakes, fixtures, AddressSanitizer gating | `gtest-patterns.md` reference |
+| [`latency-critical-systems`](skills/latency-critical-systems/) | Low-latency systems: zero-alloc hot paths, p99 profiling, cache-line alignment, lock-free queues | `latency-patterns.md` reference |
 | [`onnx-quantize-tflm`](skills/onnx-quantize-tflm/) | Models onto MCUs: INT8 calibration, TFLite Micro arena, CMSIS-NN | `quantize_onnx.py`, `tflite_report.py` |
 | [`skill-eval-harness`](skills/skill-eval-harness/) | Writing and evaluating skills, including these ones | `new_skill.py` |
 

@@ -1,0 +1,44 @@
+skill: cpp-testing
+
+discovery:
+  should_trigger:
+    - "Write a GoogleTest suite for my circular buffer class."
+    - "How do I configure CMake to discover gtest tests automatically?"
+    - "Diagnose a flaky C++ unit test that crashes intermittently."
+    - "Set up AddressSanitizer with CTest for our C++ project."
+    - "Write a mock object using GoogleMock for this sensor interface."
+  should_not_trigger:
+    - "Fix synthesizable Verilog latches."
+    - "Run OpenLane Sky130 placement and routing."
+    - "Quantize a PyTorch model into TFLM format."
+    - "Write a python pytest fixture for web scraping."
+
+usefulness:
+  - id: gtest-assert-vs-expect
+    note: >
+      Checks whether the model understands when to use ASSERT_* versus EXPECT_*
+      to avoid dereferencing null pointers on failed allocations.
+    prompt: |
+      I have this GoogleTest test case:
+      ```cpp
+      TEST(ParserTest, ParsesValidPayload) {
+          auto* packet = parse_packet(raw_data);
+          EXPECT_NE(packet, nullptr);
+          EXPECT_EQ(packet->header.id, 0x42);
+      }
+      ```
+      If `parse_packet` returns nullptr, the test segfaults on the second line. How should this be fixed in GoogleTest?
+    graders:
+      must_match:
+        - "ASSERT_NE"
+      must_match_any:
+        - "fatal|segfault|crash|dereference"
+
+  - id: cmake-ctest-discovery
+    note: >
+      Checks that the model uses modern gtest_discover_tests instead of manual add_test calls.
+    prompt: |
+      How should I register my GoogleTest executable `unit_tests` with CTest in modern CMake?
+    graders:
+      must_match:
+        - "gtest_discover_tests"

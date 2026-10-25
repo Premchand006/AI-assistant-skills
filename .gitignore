@@ -35,3 +35,6 @@ results/
 evals/out/
 .eval-cache/
 *.provider.log
+
+# Upstream reference repos
+SFP-main/

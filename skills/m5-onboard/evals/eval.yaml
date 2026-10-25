@@ -1,0 +1,37 @@
+skill: m5-onboard
+
+discovery:
+  should_trigger:
+    - "I plugged in my M5Stack Cardputer. How do I flash MicroPython onto it?"
+    - "My ESP32 is stuck in a boot loop after flashing. How do I enter download mode?"
+    - "Upload this python script to an M5Stack Core2 over USB serial."
+    - "How do I use esptool to flash an ESP32-S3 board?"
+  should_not_trigger:
+    - "Synthesize Verilog using OpenLane on Sky130."
+    - "Set up a Next.js frontend with Tailwind."
+    - "Write a Dockerfile for a Go API."
+    - "Optimize latency in an HFT market data parser."
+
+usefulness:
+  - id: download-mode-entry
+    note: >
+      Checks that the model explains how to enter ROM download mode using GPIO0/G0.
+    prompt: |
+      When running `esptool.py` against my M5Stack Cardputer, it fails with:
+      `A fatal error occurred: Failed to connect to ESP32-S3: No serial data received.`
+      What physical button sequence is required to put the board into bootloader download mode?
+    graders:
+      must_match_any:
+        - "G0|GPIO0|boot"
+      must_match:
+        - "reset"
+
+  - id: mpremote-file-transfer
+    note: >
+      Checks that the model uses standard mpremote commands to deploy files to an ESP32 running MicroPython.
+    prompt: |
+      How do I copy a local file `app.py` onto an ESP32 running MicroPython as `main.py` using `mpremote`?
+    graders:
+      must_match:
+        - "mpremote"
+        - ":main.py"

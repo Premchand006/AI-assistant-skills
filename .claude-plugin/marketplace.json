@@ -11,8 +11,8 @@
     {
       "name": "silicon-skills",
       "source": "./",
-      "description": "Seven skills for RTL, silicon implementation, firmware and edge AI deployment, each with usefulness, discovery and adversarial-discovery evals.",
-      "version": "0.1.0",
+      "description": "Measured skills for RTL, silicon implementation, embedded firmware, modern C++, latency engineering, and edge AI deployment, each with usefulness, discovery and adversarial-discovery evals.",
+      "version": "0.2.0",
       "license": "MIT",
       "category": "hardware",
       "keywords": [
@@ -24,6 +24,10 @@
         "firmware",
         "tinyml",
         "quantization",
+        "cpp",
+        "gtest",
+        "latency",
+        "esp32",
         "evals"
       ]
     }

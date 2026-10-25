@@ -1,0 +1,56 @@
+skill: cpp-coding-standards
+
+discovery:
+  should_trigger:
+    - "Review this C++ class for resource leaks and memory safety."
+    - "How should I structure constructor and destructor under the Rule of Five in modern C++?"
+    - "Convert this legacy C code with raw pointers into modern idiomatic C++."
+    - "Why is passing raw pointers into an interface considered an anti-pattern in C++?"
+    - "Should I use std::unique_ptr or std::shared_ptr for this subsystem manager?"
+    - "Enforce ISO C++ Core Guidelines on our codebase."
+  should_not_trigger:
+    - "Write a Verilog testbench for my SPI controller."
+    - "Configure OpenLane Sky130 synthesis flow."
+    - "How do I quantize an ONNX model into INT8 for an MCU?"
+    - "Review this Python Flask web app."
+    - "Fix a clock domain crossing between two asynchronous clocks."
+
+usefulness:
+  - id: raw-pointer-ownership
+    note: >
+      Tests whether the model recognizes ambiguous ownership with raw pointers
+      and replaces them with std::unique_ptr or non-owning references.
+    prompt: |
+      Review this function signature and implementation:
+      ```cpp
+      Widget* create_widget(const char* name);
+      void process_widget(Widget* w);
+      ```
+      The caller frequently forgets to call `delete w`. How should this interface be rewritten under modern C++ guidelines?
+    graders:
+      must_match_any:
+        - "unique_ptr|make_unique"
+      must_match:
+        - "ownership"
+      must_match_count:
+        - pattern: "raw pointer|delete|leak"
+          min: 1
+
+  - id: explicit-constructor
+    note: >
+      Checks that single-argument constructors are marked explicit to prevent
+      accidental conversions.
+    prompt: |
+      Here is a C++ class:
+      ```cpp
+      class Buffer {
+      public:
+          Buffer(size_t capacity);
+      };
+      ```
+      What rule from the C++ Core Guidelines does this violate, and why does it matter?
+    graders:
+      must_match:
+        - "explicit"
+      must_match_any:
+        - "implicit conversion|accidental conversion"

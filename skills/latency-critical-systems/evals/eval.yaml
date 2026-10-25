@@ -1,0 +1,44 @@
+skill: latency-critical-systems
+
+discovery:
+  should_trigger:
+    - "Our trading pipeline has severe p99 latency spikes. How do we trace and reduce them?"
+    - "How do I eliminate false sharing in a multithreaded ring buffer in C++?"
+    - "Optimize this packet processing loop for zero dynamic allocations."
+    - "We need to hit sub-millisecond p95 latency on our streaming gateway."
+  should_not_trigger:
+    - "Design a CSS grid layout for a responsive dashboard."
+    - "Write a SQL migration script for PostgreSQL."
+    - "Configure OpenLane Sky130 synthesis flow."
+    - "How do I write a prompt for Claude Code?"
+
+usefulness:
+  - id: eliminate-false-sharing
+    note: >
+      Checks whether the model identifies false sharing when head and tail pointers
+      share a single cache line, and recommends alignas(64) padding.
+    prompt: |
+      In our multithreaded queue, thread A writes `head` and thread B writes `tail`:
+      ```cpp
+      struct QueueState {
+          std::atomic<uint64_t> head{0};
+          std::atomic<uint64_t> tail{0};
+      };
+      ```
+      Throughput drops significantly when both threads run on different cores. What is causing this degradation, and how do we fix it?
+    graders:
+      must_match:
+        - "false sharing"
+      must_match_any:
+        - "alignas|cache line|hardware_destructive_interference_size"
+
+  - id: zero-allocation-hot-path
+    note: >
+      Verifies that the model recommends pre-allocation to prevent heap lock contention.
+    prompt: |
+      Our market data parsing loop allocates a `std::vector<Record>` for every incoming UDP packet. Why does this create tail latency spikes, and what is the standard architectural fix?
+    graders:
+      must_match_any:
+        - "heap|malloc|lock|page fault"
+      must_match:
+        - "pre-allocat"
