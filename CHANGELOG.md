@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- The plugin installed as version 0.1.0 although the marketplace entry said
+  0.2.0: `plugin.json`'s `version` takes precedence over the entry's. The
+  version now lives in `plugin.json` only (0.2.0). The entry's `keywords` and
+  `description` were also hiding `plugin.json`'s, so the entry now carries only
+  `source`, `category` and search `tags`.
+- README, `plugin.json` and `docs/eval-methodology.md` still described seven
+  skills after four were added. Corrected counts: 11/11 skills validate,
+  17 scripts compile, 43 usefulness cases, 59 discovery and 59 adversarial
+  prompts. The eval table is regenerated and lists all eleven skills.
+
 - A fresh clone failed `tools/test_scripts.py` (7/8): the unanchored `runs/`
   rule in `.gitignore` also ignored the OpenLane failed-run fixture under
   `evals/fixtures/openlane/runs/`. The fixture is now re-included and committed.
@@ -48,6 +58,18 @@
   exit 2 with an explanation when none is found.
 
 ### Added
+
+- `tools/check_docs_sync.py` (`make docs`, and a CI step): fails when the
+  README skill table, `llms.txt` or `CITATION.cff` disagree with `skills/`,
+  when a count quoted in the README is stale, or when the marketplace entry
+  duplicates a field `plugin.json` owns.
+- `llms.txt`: a plain-text index of the skills and docs for AI assistants and
+  answer engines.
+- `CITATION.cff`, so GitHub offers "Cite this repository".
+- README: badges, contents, a symptom-to-skill table, install paths for agents
+  other than Claude Code, and an FAQ.
+- `tools/package_agensi.py`: per-skill and full-pack upload zips for the
+  Agensi marketplace.
 
 - `tools/check_transcripts.py`: scans transcripts for credentials, private
   keys, e-mail addresses, home-directory paths and confidentiality markers.

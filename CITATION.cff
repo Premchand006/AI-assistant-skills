@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use these skills or their eval harness in research or a write-up, please cite the repository."
+title: "AI-assistant-skills: measured agent skills for open silicon, embedded firmware and edge AI"
+type: software
+authors:
+  - alias: Premchand006
+repository-code: "https://github.com/Premchand006/AI-assistant-skills"
+url: "https://github.com/Premchand006/AI-assistant-skills"
+license: MIT
+version: 0.2.0
+abstract: >-
+  Agent skills in the SKILL.md format for synthesisable Verilog/SystemVerilog,
+  testbench discipline, timing closure and clock-domain crossings, OpenLane 2
+  on Sky130, Cortex-M firmware and MISRA C, ESP32/M5Stack provisioning, modern
+  C++ and GoogleTest, latency-critical systems, and INT8 quantisation to
+  TFLite Micro. Every skill ships with usefulness, discovery and adversarial
+  discovery evals, and replayable transcripts.
+keywords:
+  - agent skills
+  - claude code plugin
+  - verilog
+  - systemverilog
+  - rtl
+  - openlane
+  - sky130
+  - embedded firmware
+  - misra c
+  - tinyml
+  - tflite micro
+  - llm evaluation

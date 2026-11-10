@@ -1,0 +1,33 @@
+# AI-assistant-skills
+
+> Eleven agent skills (SKILL.md format, installable as the Claude Code plugin `silicon-skills`) for synthesisable Verilog/SystemVerilog RTL, self-checking testbenches, static timing and clock-domain crossings, OpenLane 2 RTL-to-GDSII on Sky130/GF180, Cortex-M firmware and MISRA C, ESP32/M5Stack provisioning, modern C++ and GoogleTest, latency-critical systems, INT8 quantisation to TFLite Micro, and evaluating skills. Each skill ships with an eval suite (usefulness with skill on vs off, discovery, adversarial discovery) and an honest-limits section. MIT licensed.
+
+Install in Claude Code: `/plugin marketplace add Premchand006/AI-assistant-skills` then `/plugin install silicon-skills@ai-assistant-skills`. Any agent that reads SKILL.md can use a skill by copying its folder from `skills/<name>/`.
+
+The bundled checkers are dependency-free Python heuristics (regex after comment stripping). They do not elaborate designs or preprocess C. Verilator, Yosys, cppcheck, real CDC tools and synthesis remain the authorities. No model eval run has been recorded yet; the results table reports "not run", never a pass.
+
+## Skills
+
+- [rtl-verilog-lint](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/rtl-verilog-lint/SKILL.md): synthesisable Verilog/SystemVerilog; latch inference, blocking vs non-blocking, reset style, multiple drivers; `check_synthesizable.py`, `lint_rtl.sh`
+- [rtl-testbench-discipline](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/rtl-testbench-discipline/SKILL.md): self-checking testbenches, scoreboards, watchdogs, SVA, functional coverage, cocotb, UVM; `check_testbench.py`
+- [timing-closure-cdc](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/timing-closure-cdc/SKILL.md): setup/hold violations, SDC constraints, two-flop synchronisers, gray code, async FIFOs; `cdc_scan.py`
+- [openlane-sky130-flow](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/openlane-sky130-flow/SKILL.md): OpenLane 2 / OpenROAD on Sky130 or GF180MCU; config.json, floorplan, DRC/LVS/antenna, failed-run triage; `check_config.py`, `summarize_run.py`
+- [embedded-firmware-misra](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/embedded-firmware-misra/SKILL.md): Cortex-M/STM32/RTOS firmware in C; ISR safety, volatile vs atomicity, critical sections, register access, MISRA C:2012; `check_isr_safety.py`, `run_static.sh`
+- [m5-onboard](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/m5-onboard/SKILL.md): M5Stack and ESP32 provisioning; serial ports, ROM download mode, esptool flashing, MicroPython via mpremote
+- [cpp-coding-standards](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/cpp-coding-standards/SKILL.md): modern C++17/20/23 per the ISO C++ Core Guidelines; RAII, ownership, Rule of Zero/Five, undefined behaviour
+- [cpp-testing](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/cpp-testing/SKILL.md): GoogleTest, GoogleMock, CTest; fixtures, fakes vs mocks, ASan/UBSan/TSan
+- [latency-critical-systems](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/latency-critical-systems/SKILL.md): p50/p99 latency, zero-allocation hot paths, false sharing, cache-line alignment, lock-free queues
+- [onnx-quantize-tflm](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/onnx-quantize-tflm/SKILL.md): INT8 post-training quantisation of ONNX models, TFLite Micro tensor arena, CMSIS-NN; `quantize_onnx.py`, `tflite_report.py`
+- [skill-eval-harness](https://github.com/Premchand006/AI-assistant-skills/blob/main/skills/skill-eval-harness/SKILL.md): writing and evaluating agent skills; descriptions that trigger reliably, three-family eval suites; `new_skill.py`
+
+## Docs
+
+- [README](https://github.com/Premchand006/AI-assistant-skills/blob/main/README.md): overview, install, symptom-to-skill table, what CI verifies
+- [Eval methodology](https://github.com/Premchand006/AI-assistant-skills/blob/main/docs/eval-methodology.md): how usefulness, discovery and adversarial discovery are graded, and what the evals do not measure
+- [Authoring skills](https://github.com/Premchand006/AI-assistant-skills/blob/main/docs/authoring-skills.md): frontmatter rules, size budgets, layout, and why each rule exists
+- [Contributing](https://github.com/Premchand006/AI-assistant-skills/blob/main/CONTRIBUTING.md): the bar for a new skill
+
+## Optional
+
+- [Changelog](https://github.com/Premchand006/AI-assistant-skills/blob/main/CHANGELOG.md)
+- [Security](https://github.com/Premchand006/AI-assistant-skills/blob/main/SECURITY.md): what a live eval run sends to a model provider and how transcripts are scanned

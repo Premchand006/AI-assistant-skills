@@ -145,11 +145,12 @@ Results are per model and per version. They do not transfer.
 - **Whether the produced code compiles or runs.** Graders check text. A case
   that verifies the model chose a gray-coded crossing does not verify that the
   gray-code conversion it wrote is correct.
-- **Tasks nobody wrote a case for.** Coverage is 5 usefulness cases per skill.
+- **Tasks nobody wrote a case for.** Coverage is 5 usefulness cases per skill
+  for the original seven, and 2 for the four added later.
 - **Whether a skill degrades unrelated conversations** beyond what the
   adversarial prompts sample.
 - **Interaction between skills.** Each skill is graded alone; installing all
-  seven has effects this harness does not measure.
+  of them together has effects this harness does not measure.
 - **Long-conversation behaviour.** Every case is a single turn.
 
 ## Separate from the evals: what CI proves today
