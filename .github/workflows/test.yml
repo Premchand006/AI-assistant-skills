@@ -66,6 +66,12 @@ jobs:
       - name: smoke
         run: python tools/smoke_imports.py
 
+      # The README, llms.txt and plugin manifests are what visitors, search
+      # engines and skill directories read first; their skill lists, counts and
+      # versions must match the repository.
+      - name: docs in sync
+        run: python tools/check_docs_sync.py
+
       # Re-grade the committed transcripts. No API key, no model call: this
       # checks that the published results table still follows from the
       # recorded responses and the graders in each eval.yaml.
