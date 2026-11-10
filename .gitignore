@@ -38,3 +38,6 @@ evals/out/
 
 # Upstream reference repos
 SFP-main/
+
+# Marketplace upload zips (tools/package_agensi.py)
+dist/

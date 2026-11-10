@@ -28,6 +28,9 @@ it is whether it beats the same model without it — and that is answerable.
 6. Run the evals. If the skill does not beat its own baseline, fix it or drop
    it.
 
+The `../../` commands need a clone of the full repository
+(github.com/Premchand006/AI-assistant-skills); `new_skill.py` runs on its own.
+
 ```bash
 python3 scripts/new_skill.py my-skill-name      # scaffold with evals in place
 python3 ../../tools/validate_skills.py          # frontmatter, budgets, style
