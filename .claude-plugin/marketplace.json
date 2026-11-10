@@ -4,30 +4,25 @@
     "name": "Premchand006"
   },
   "metadata": {
-    "description": "Measured skills for open-silicon, embedded firmware and edge AI. Every skill ships with an eval suite and an honest-limits section.",
-    "version": "0.1.0"
+    "description": "Measured agent skills for open-silicon, embedded firmware and edge AI. Every skill ships with an eval suite and an honest-limits section.",
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "silicon-skills",
       "source": "./",
-      "description": "Measured skills for RTL, silicon implementation, embedded firmware, modern C++, latency engineering, and edge AI deployment, each with usefulness, discovery and adversarial-discovery evals.",
-      "version": "0.2.0",
-      "license": "MIT",
       "category": "hardware",
-      "keywords": [
+      "tags": [
         "verilog",
+        "systemverilog",
         "rtl",
         "openlane",
         "sky130",
         "embedded",
         "firmware",
-        "tinyml",
-        "quantization",
         "cpp",
-        "gtest",
-        "latency",
         "esp32",
+        "tinyml",
         "evals"
       ]
     }

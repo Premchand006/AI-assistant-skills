@@ -1,11 +1,13 @@
 {
   "name": "silicon-skills",
-  "description": "Seven measured skills for open-silicon, embedded firmware and edge AI: synthesisable RTL, testbench discipline, timing and CDC, OpenLane/Sky130 RTL-to-GDSII, ISR-safe firmware, INT8 quantisation to TFLite Micro, and the eval harness they are all graded by.",
-  "version": "0.1.0",
+  "displayName": "Silicon Skills",
+  "description": "Eleven measured agent skills for open-silicon, embedded firmware and edge AI: synthesisable Verilog/SystemVerilog, testbench discipline, timing closure and CDC, OpenLane 2 / Sky130 RTL-to-GDSII, ISR-safe Cortex-M firmware and MISRA C, ESP32/M5Stack provisioning, modern C++ and GoogleTest, latency-critical systems, INT8 quantisation to TFLite Micro, and the eval harness they are all graded by.",
+  "version": "0.2.0",
   "author": {
-    "name": "Premchand006"
+    "name": "Premchand006",
+    "url": "https://github.com/Premchand006"
   },
-  "homepage": "https://github.com/Premchand006/AI-assistant-skills",
+  "homepage": "https://github.com/Premchand006/AI-assistant-skills#readme",
   "repository": "https://github.com/Premchand006/AI-assistant-skills",
   "license": "MIT",
   "keywords": [
@@ -20,6 +22,7 @@
     "vlsi",
     "timing-closure",
     "cdc",
+    "sva",
     "uvm",
     "cocotb",
     "embedded",
@@ -27,11 +30,18 @@
     "cortex-m",
     "stm32",
     "misra",
+    "esp32",
+    "m5stack",
+    "micropython",
+    "cpp",
+    "googletest",
+    "latency",
     "tinyml",
     "onnx",
     "quantization",
     "tflite-micro",
     "edge-ai",
+    "agent-skills",
     "evals"
   ]
 }
